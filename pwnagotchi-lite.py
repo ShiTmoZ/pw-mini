@@ -148,25 +148,69 @@ def iface_channels(iface):
     except Exception:
         return list(range(1, 14))
 
+def ensure_bettercap(logger=None):
+    """Install bettercap if missing."""
+    def log(m):
+        if logger: logger(m)
+    r = subprocess.run(["which", "bettercap"], capture_output=True, timeout=5)
+    if r.returncode == 0:
+        return True
+    log("bettercap not found — installing...")
+    r = subprocess.run(["sudo", "apt", "install", "-y", "bettercap"],
+                       capture_output=True, text=True, timeout=120)
+    if r.returncode == 0:
+        log("bettercap installed")
+        return True
+    log(f"FAILED to install bettercap: {r.stderr[-200:]}")
+    return False
+
 def setup_monitor(iface, logger=None):
-    """Put interface in monitor mode."""
+    """Put interface in monitor mode. Tries iw then airmon-ng."""
     def log(m):
         if logger:
             logger(m)
 
     log(f"Setting {iface} to monitor mode...")
-    subprocess.run(["nmcli", "dev", "set", iface, "managed", "no"],
-                   capture_output=True, timeout=5)
+
+    # Kill interfering processes first
+    subprocess.run(["airmon-ng", "check", "kill"], capture_output=True, timeout=10)
+    time.sleep(1)
+
+    # Method 1: iw
     subprocess.run(["ip", "link", "set", iface, "down"], capture_output=True, timeout=5)
-    subprocess.run(["iw", "dev", iface, "set", "type", "monitor"], capture_output=True, timeout=5)
+    r = subprocess.run(["iw", "dev", iface, "set", "type", "monitor"],
+                       capture_output=True, text=True, timeout=5)
     subprocess.run(["ip", "link", "set", iface, "up"], capture_output=True, timeout=5)
 
-    # Verify
+    # Verify with iw
     r = subprocess.run(["iw", "dev", iface, "info"], capture_output=True, text=True, timeout=5)
     if "type monitor" in r.stdout:
-        log("Monitor mode active")
+        log("Monitor mode active (iw)")
         return True
-    log("Warning: monitor mode may not be active")
+
+    # Method 2: airmon-ng (creates wlan0mon)
+    log("iw failed — trying airmon-ng...")
+    r = subprocess.run(["airmon-ng", "start", iface],
+                       capture_output=True, text=True, timeout=15)
+    # airmon might rename to wlan0mon — check both
+    mon = iface + "mon"
+    for name in (iface, mon):
+        r2 = subprocess.run(["iw", "dev", name, "info"],
+                           capture_output=True, text=True, timeout=5)
+        if "type monitor" in r2.stdout:
+            log(f"Monitor mode active (airmon-ng → {name})")
+            return True
+
+    # Verify with tcpdump (final check)
+    r3 = subprocess.run(
+        ["tcpdump", "-i", iface, "-c", "1", "-t", "-v"],
+        capture_output=True, text=True, timeout=5
+    )
+    if "IEEE" in r3.stderr or "WLAN" in r3.stderr or "802.11" in r3.stderr:
+        log("Monitor mode active (tcpdump confirms 802.11)")
+        return True
+
+    log(f"FAILED: {iface} reject monitor mode")
     return False
 
 def teardown_monitor(iface):
@@ -349,6 +393,19 @@ class Agent:
 
         # Wait for Bettercap
         if self.cfg["auto_bc"]:
+            # Install bettercap if missing
+            self.log("Checking bettercap...")
+            ensure_bettercap(self.log)
+
+            # Setup monitor mode
+            if not setup_monitor(self.cfg["iface"], self.log):
+                self.log("FATAL: Cannot enable monitor mode")
+                self.log("Try manually: sudo airmon-ng check kill && sudo iw dev wlan0 set type monitor")
+                self.state["running"] = False
+                self._draw(stdscr)
+                stdscr.getch()
+                return
+
             self.log("Starting bettercap...")
             self._bc_proc = start_bettercap(
                 self.cfg["iface"], self.cfg["bc_port"],
