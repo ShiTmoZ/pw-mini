@@ -101,6 +101,22 @@ REQS
     python3 -m pip install --break-system-packages --no-deps -r "$PWN_REQ_FILE" || \
     python3 -m pip install --break-system-packages -r "$PWN_REQ_FILE"
 
+    # Bridge Debian Cryptodome -> Crypto if PyPI pycryptodome wheel is not installed
+    python3 -m pip install --break-system-packages --no-deps pycryptodome >/dev/null 2>&1 || true
+    python3 -c "
+try:
+    import Crypto
+except ImportError:
+    try:
+        import Cryptodome, os
+        src = os.path.dirname(Cryptodome.__file__)
+        dst = os.path.join(os.path.dirname(src), 'Crypto')
+        if not os.path.exists(dst):
+            os.symlink(src, dst)
+    except Exception:
+        pass
+" 2>/dev/null || true
+
     # Install pwnagotchi itself with --no-deps so the resolver never drags in
     # gpiozero/inky/smbus/spidev/pisugar (which would abort the whole install).
     # Editable is preferred: the clone is used in place, nothing is rewritten.

@@ -259,6 +259,22 @@ start_bettercap() {
 
 run_pwnagotchi() {
     export PYTHONPATH="$PWN_REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+    # Debian python3-pycryptodome installs as 'Cryptodome'. Auto-bridge to 'Crypto' if needed.
+    python3 -c "
+try:
+    import Crypto
+except ImportError:
+    try:
+        import Cryptodome, os
+        src = os.path.dirname(Cryptodome.__file__)
+        dst = os.path.join(os.path.dirname(src), 'Crypto')
+        if not os.path.exists(dst):
+            os.symlink(src, dst)
+    except Exception:
+        pass
+" 2>/dev/null || true
+
     local -a cmd
     if command -v pwnagotchi >/dev/null 2>&1 \
        && python3 -c "import pwnagotchi.ui.display" >/dev/null 2>&1; then
