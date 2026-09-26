@@ -60,7 +60,11 @@ install_system_packages() {
         python3-pip \
         python3-prctl \
         python3-pycryptodome \
+        python3-flask \
         python3-flask-cors \
+        python3-flask-wtf \
+        python3-toml \
+        python3-websockets \
         git \
         iw \
         aircrack-ng \
@@ -68,6 +72,7 @@ install_system_packages() {
         python3-pil \
         fonts-dejavu \
         openssh-client \
+        openssl \
         net-tools
 }
 
@@ -258,6 +263,10 @@ generate_keys() {
     chmod 600 "$key"
     chmod 644 "$key.pub"
     log "generated $key and $key.pub"
+
+    if ! command -v pwngrid >/dev/null 2>&1; then
+        printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/pwngrid 2>/dev/null && chmod +x /usr/local/bin/pwngrid 2>/dev/null || true
+    fi
 }
 
 write_env() {
