@@ -165,63 +165,41 @@ def ensure_bettercap(logger=None):
     return False
 
 def setup_monitor(iface, logger=None):
-    """Put interface in monitor mode. Tries iw then airmon-ng."""
+    """Put interface in monitor mode. Matches proven method from old Pi script."""
     def log(m):
         if logger:
             logger(m)
 
     log(f"Setting {iface} to monitor mode...")
 
-    # Kill interfering processes first
-    subprocess.run(["airmon-ng", "check", "kill"], capture_output=True, timeout=10)
-    time.sleep(1)
-
-    # Method 1: iw
+    # Same as proven script: nmcli -> down -> iw -> up
+    subprocess.run(["nmcli", "dev", "set", iface, "managed", "no"],
+                   capture_output=True, timeout=5)
     subprocess.run(["ip", "link", "set", iface, "down"], capture_output=True, timeout=5)
-    r = subprocess.run(["iw", "dev", iface, "set", "type", "monitor"],
-                       capture_output=True, text=True, timeout=5)
+    subprocess.run(["iw", "dev", iface, "set", "type", "monitor"], capture_output=True, timeout=5)
     subprocess.run(["ip", "link", "set", iface, "up"], capture_output=True, timeout=5)
 
-    # Verify with iw
+    # Verify
     r = subprocess.run(["iw", "dev", iface, "info"], capture_output=True, text=True, timeout=5)
     if "type monitor" in r.stdout:
-        log("Monitor mode active (iw)")
+        log("Monitor mode active")
         return True
 
-    # Method 2: airmon-ng (creates wlan0mon)
-    log("iw failed — trying airmon-ng...")
-    r = subprocess.run(["airmon-ng", "start", iface],
-                       capture_output=True, text=True, timeout=15)
-    # airmon might rename to wlan0mon — check both
-    mon = iface + "mon"
-    for name in (iface, mon):
-        r2 = subprocess.run(["iw", "dev", name, "info"],
-                           capture_output=True, text=True, timeout=5)
-        if "type monitor" in r2.stdout:
-            log(f"Monitor mode active (airmon-ng → {name})")
-            return True
-
-    # Verify with tcpdump (final check)
-    r3 = subprocess.run(
-        ["tcpdump", "-i", iface, "-c", "1", "-t", "-v"],
-        capture_output=True, text=True, timeout=5
-    )
-    if "IEEE" in r3.stderr or "WLAN" in r3.stderr or "802.11" in r3.stderr:
-        log("Monitor mode active (tcpdump confirms 802.11)")
-        return True
-
-    log(f"FAILED: {iface} reject monitor mode")
+    log("FAILED: iw rejects monitor mode")
     return False
 
 def teardown_monitor(iface):
-    """Restore managed mode."""
+    """Restore managed mode and restart networking."""
+    subprocess.run(["pkill", "-9", "-f", "bettercap"], capture_output=True, timeout=5)
+    subprocess.run(["pkill", "-9", "-f", "pwnagotchi"], capture_output=True, timeout=5)
+    subprocess.run(["killall", "-9", "wpa_supplicant"], capture_output=True, timeout=5)
     subprocess.run(["ip", "link", "set", iface, "down"], capture_output=True, timeout=5)
     subprocess.run(["iw", "dev", iface, "set", "type", "managed"], capture_output=True, timeout=5)
     subprocess.run(["ip", "link", "set", iface, "up"], capture_output=True, timeout=5)
     subprocess.run(["nmcli", "dev", "set", iface, "managed", "yes"],
                    capture_output=True, timeout=5)
     subprocess.run(["systemctl", "restart", "NetworkManager"],
-                   capture_output=True, timeout=10)
+                   capture_output=True, timeout=15)
 
 def start_bettercap(iface, port, user, pwd, bc_bin="bettercap"):
     """Launch bettercap in background."""
