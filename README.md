@@ -1,121 +1,65 @@
-# Pwnagotchi-Lite
-**Terminal-based Wi-Fi handshake hunter. Minimal, no-BS, no Pi dependencies.**
+# Pwnagotchi for PC (Linux x86_64 / Kali)
 
-## Philosophy
+A standalone wrapper, hardware auditor, and automated patchset for running **Jayofelony Pwnagotchi** natively on standard Linux PCs (Kali, Debian, Ubuntu x86_64) with **zero Raspberry Pi hardware dependencies**.
 
-Pwnagotchi original is designed for Raspberry Pi + E-Ink display + deauth.
-Pwnagotchi-Lite is designed for **PC + terminal + any WiFi card**.
+---
 
-| Feature | Original | Lite |
-|---------|----------|------|
-| Display | E-Ink (inky/epd) | curses terminal |
-| Web UI | Flask | ✗ |
-| Bluetooth | ✓ | ✗ |
-| Mesh/Pwngrid | ✓ | ✗ |
-| AI (removed) | ✗ now | planned as advice layer |
-| Deauth/Assoc | ✓ | optional (`--active`) |
-| Pi-only display deps | ✓ | ✗ |
-| Single-file deploy | ✗ | ✓ |
+## ✨ Features
 
-## How it works (for passive mode)
+- **Zero Pi Dependencies**: Bypasses all Raspberry Pi-exclusive hardware wheels (`gpiozero`, `inky`, `rpi-lgpio`, `rpi_hardware_pwm`, `smbus`, `pisugar`).
+- **Hardware Doctor (`doctor.py`)**:
+  - Automatically identifies Wi-Fi chipsets and tests nl80211 monitor mode capability.
+  - Detects packet injection / frame deauthentication capabilities.
+  - **Auto Passive Fallback**: If the wireless chipset lacks raw frame injection (e.g. onboard Realtek `rtw89`/`rtw88` or Intel `iwlwifi`), it automatically configures `personality.deauth = false` and `associate = false`. The agent operates smoothly as a **100% Passive Sniffer** (capturing handshakes and PMKIDs organically from client reconnects) without crashing.
+- **Embedded Pwngrid Mock**: Replaces the external Go `pwngrid` binary with a built-in Python mock HTTP service on `127.0.0.1:8666`.
+- **Anti-Reboot Safeguard**: Pins `main.name` to the host's actual hostname, neutralizing upstream logic that attempts to reboot non-Pi systems.
+- **Clean Network Lifecycle**: Handles NetworkManager unmanagement, monitor VIF creation, Bettercap REST API initialization, and automatically restores all network interfaces upon exit (`Ctrl+C`).
+- **Web UI**: Access the classic dynamic face and telemetry dashboard at `http://localhost:8080`.
 
-```
-┌─────────────┐     REST API     ┌──────────────┐
-│ bettercap   │ ◄──────────────► │ pwnagotchi-  │
-│ (wifi.recon)│                  │ lite.py      │
-│             │                  │              │
-│ session() ──┼─── AP list ────► │ epoch loop   │
-│ events()  ──┼─── HS notif ──► │ curses UI    │
-└─────────────┘                  └──────┬───────┘
-                                        │
-                                   ┌────▼──────┐
-                                   │ handshakes │
-                                   │ .pcapng   │
-                                   └───────────┘
-```
+---
 
-## Requirements
+## 🚀 One-Line Installation (Kali Linux Live / Debian)
 
-- **OS**: Linux (Kali recommended, any distro with iw + nmcli works)
-- **Bettercap**: `sudo apt install bettercap`
-- **Python**: 3.8+ (stdlib only — no pip install needed)
-
-## Quick start
-
-### 1. Set up monitor mode manually (or use --auto)
+After booting into Kali Linux, run the following single-line command:
 
 ```bash
-sudo nmcli dev set wlan0 managed no
-sudo ip link set wlan0 down
-sudo iw dev wlan0 set type monitor
-sudo ip link set wlan0 up
+sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
 ```
 
-### 2. Start bettercap
+---
+
+## 🎮 Running Pwnagotchi
+
+Launch the automated runner:
 
 ```bash
-sudo bettercap -iface wlan0
+sudo ./start.sh
 ```
 
-In bettercap shell:
-```
-set api.rest.username pwnagotchi
-set api.rest.password pwnagotchi
-api.rest on
-wifi.recon on
-```
+### Options & Flags
 
-### 3. Run Pwnagotchi-Lite
+- **Select specific Wi-Fi adapter**:
+  ```bash
+  sudo PWN_IFACE=wlan1 ./start.sh
+  ```
+- **Active injection probe (`aireplay-ng`)**:
+  ```bash
+  sudo PWN_DEEP_SCAN=1 ./start.sh
+  ```
 
-```bash
-sudo ./pwnagotchi-lite.py
-```
+---
 
-Or with one command:
-```bash
-sudo ./pwnagotchi-lite.py --auto
-```
+## 🌐 Web Dashboard
 
-### Restore network after use
+Once started, open your browser and navigate to:
+- **URL**: `http://localhost:8080`
+- **Default Username**: `admin`
+- **Default Password**: `admin`
 
-```bash
-sudo nmcli dev set wlan0 managed yes
-sudo ip link set wlan0 down
-sudo iw dev wlan0 set type managed
-sudo ip link set wlan0 up
-sudo systemctl restart NetworkManager
-```
+Handshake captures (`.pcapng`) are automatically saved to `/root/handshakes/`.
 
-## Advanced usage
+---
 
-```bash
-# Scan only 2.4GHz channels 1,6,11
-sudo ./pwnagotchi-lite.py --channels 1,6,11
+## 🛑 Stopping & Network Recovery
 
-# Custom handshake directory
-sudo ./pwnagotchi-lite.py --hs-dir /root/pcaps
-
-# Faster recon (10s per epoch)
-sudo ./pwnagotchi-lite.py --recon 10
-
-# Active mode (deauth + assoc — needs dongle with injection)
-sudo ./pwnagotchi-lite.py --active
-
-# Different interface
-sudo ./pwnagotchi-lite.py --iface wlan1
-```
-
-## Test with your D-Link
-
-1. Plug D-Link to power (no ethernet needed)
-2. Your PC scans and sees it in AP list
-3. Turn D-Link off/on → clients reconnect → handshake captured
-4. Check `ls -la /root/handshakes/` for .pcapng files
-
-## Convert & crack
-
-```bash
-sudo apt install hcxtools
-hcxpcapngtool -o capture.hc22000 /root/handshakes/*.pcapng
-hashcat -m 22000 capture.hc22000 /usr/share/wordlists/rockyou.txt
-```
+Press `Ctrl+C` in the terminal. `start.sh` automatically kills helper daemons, removes the temporary monitor interface, and restores NetworkManager.
