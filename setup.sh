@@ -62,7 +62,7 @@ install_system_packages() {
         python3-pycryptodome \
         python3-flask \
         python3-flask-cors \
-        python3-flask-wtf \
+        python3-flaskext.wtf \
         python3-toml \
         python3-websockets \
         git \
