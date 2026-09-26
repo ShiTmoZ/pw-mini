@@ -247,21 +247,14 @@ make_dirs() {
 generate_keys() {
     local key="$PWN_CONFIG_DIR/id_rsa"
     log "ensuring RSA identity in $PWN_CONFIG_DIR ..."
-    if [ -s "$key" ] && [ -s "$key.pub" ]; then
-        log "identity already present, keeping it"
+    if [ -s "$key" ] && [ -s "$key.pub" ] && openssl rsa -in "$key" -check -noout >/dev/null 2>&1; then
+        log "identity already present and valid, keeping it"
         return 0
     fi
-    rm -f "$key" "$key.pub"
-    # `-m PEM` forces a PKCS#1 private key that pycryptodome's RSA.importKey can
-    # read; the public key is then re-exported as PKCS#8 PEM for the same
-    # reason. This removes the dependency on the external `pwngrid` binary.
-    ssh-keygen -t rsa -b 2048 -m PEM -N "" -C "pwnagotchi@$(hostname)" -f "$key" >/dev/null
-    if ssh-keygen -e -m PKCS8 -f "$key.pub" > "$key.pub.tmp" 2>/dev/null; then
-        mv "$key.pub.tmp" "$key.pub"
-    else
-        rm -f "$key.pub.tmp"
-        warn "could not re-export public key as PKCS#8 PEM, keeping OpenSSH format"
-    fi
+    rm -f "$key" "$key.pub" "$PWN_CONFIG_DIR/fingerprint"
+    log "generating RSA identity (2048-bit) via openssl ..."
+    openssl genrsa -out "$key" 2048 >/dev/null 2>&1
+    openssl rsa -in "$key" -pubout -out "$key.pub" >/dev/null 2>&1
     chmod 600 "$key"
     chmod 644 "$key.pub"
     log "generated $key and $key.pub"

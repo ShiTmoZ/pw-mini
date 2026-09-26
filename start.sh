@@ -299,38 +299,31 @@ except Exception:
             f.write(patch + '\n' + src)
 " 2>/dev/null || true
 
-    # Provide a dummy pwngrid stub so upstream subprocess calls never fail with FileNotFoundError
-    if ! command -v pwngrid >/dev/null 2>&1; then
-        printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/pwngrid 2>/dev/null && chmod +x /usr/local/bin/pwngrid 2>/dev/null || true
-    fi
+    # Provide a functional pwngrid stub that generates valid RSA keys via openssl
+    cat <<'PWNGRID_EOF' > /usr/local/bin/pwngrid 2>/dev/null || true
+#!/bin/sh
+if [ "$1" = "-generate" ] && [ "$2" = "-keys" ]; then
+    target="${3:-/etc/pwnagotchi}"
+    mkdir -p "$target"
+    openssl genrsa -out "$target/id_rsa" 2048 >/dev/null 2>&1
+    openssl rsa -in "$target/id_rsa" -pubout -out "$target/id_rsa.pub" >/dev/null 2>&1
+    chmod 600 "$target/id_rsa"
+    chmod 644 "$target/id_rsa.pub"
+fi
+exit 0
+PWNGRID_EOF
+    chmod +x /usr/local/bin/pwngrid 2>/dev/null || true
 
-    # Ensure RSA identity keypair exists so pwnagotchi doesn't try calling pwngrid
-    python3 -c "
-import os, hashlib
-try:
-    from Crypto.PublicKey import RSA
-    d = '$PWN_CONFIG_DIR'
-    os.makedirs(d, exist_ok=True)
-    priv_p = os.path.join(d, 'id_rsa')
-    pub_p = os.path.join(d, 'id_rsa.pub')
-    fp_p = os.path.join(d, 'fingerprint')
-    if not (os.path.isfile(priv_p) and os.path.isfile(pub_p)):
-        k = RSA.generate(2048)
-        with open(priv_p, 'wb') as f:
-            f.write(k.export_key('PEM'))
-        pub_pem = k.publickey().export_key('PEM')
-        with open(pub_p, 'wb') as f:
-            f.write(pub_pem)
-        pem_ascii = pub_pem.decode('ascii')
-        if 'RSA PUBLIC KEY' not in pem_ascii:
-            pem_ascii = pem_ascii.replace('PUBLIC KEY', 'RSA PUBLIC KEY')
-        with open(fp_p, 'w') as f:
-            f.write(hashlib.sha256(pem_ascii.encode('ascii')).hexdigest())
-        os.chmod(priv_p, 0o600)
-        os.chmod(pub_p, 0o644)
-except Exception:
-    pass
-" 2>/dev/null || true
+    # Pre-generate or heal corrupted RSA keys directly via openssl
+    mkdir -p "$PWN_CONFIG_DIR"
+    if [ ! -f "$PWN_CONFIG_DIR/id_rsa" ] || [ ! -f "$PWN_CONFIG_DIR/id_rsa.pub" ] \
+       || ! openssl rsa -in "$PWN_CONFIG_DIR/id_rsa" -check -noout >/dev/null 2>&1; then
+        rm -f "$PWN_CONFIG_DIR/id_rsa" "$PWN_CONFIG_DIR/id_rsa.pub" "$PWN_CONFIG_DIR/fingerprint"
+        openssl genrsa -out "$PWN_CONFIG_DIR/id_rsa" 2048 >/dev/null 2>&1
+        openssl rsa -in "$PWN_CONFIG_DIR/id_rsa" -pubout -out "$PWN_CONFIG_DIR/id_rsa.pub" >/dev/null 2>&1
+        chmod 600 "$PWN_CONFIG_DIR/id_rsa"
+        chmod 644 "$PWN_CONFIG_DIR/id_rsa.pub"
+    fi
 
     local -a cmd
     if command -v pwnagotchi >/dev/null 2>&1 \
