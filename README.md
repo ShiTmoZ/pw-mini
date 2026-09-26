@@ -20,16 +20,16 @@ A standalone wrapper, hardware auditor, and automated patchset for running **Jay
 
 ### ۲. نحوه نصب سریع و خودکار (دستور یک‌خطی)
 
-ترمینال کالی لینوکس را باز کرده و دستور زیر را به صورت کامل کپی و اجرا کنید:
+ترمینال کالی لینوکس را باز کرده و دستور یک‌خطی زیر را اجرا کنید:
 
 ```bash
-sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl python3-pycryptodome python3-flask-cors iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && sudo rm -rf pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
+sudo rm -rf /opt/pwnagotchi-pc /etc/pwnagotchi ~/pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git ~/pw-mini && cd ~/pw-mini && sudo bash setup.sh && sudo ./start.sh
 ```
 
-این دستور به صورت خودکار:
-1. پکیج‌های پایه و درایورهای مورد نیاز را بدون تداخل pip نصب می‌کند.
-2. سورس اصلی پوناگوچی را دانلود و پچ‌های لینوکس PC را روی آن اعمال می‌کند (حذف پیش‌نیازهای اختصاصی سخت‌افزار رزبری‌پای مانند پین‌های GPIO، نمایشگر اینکی و سنسورهای باتری).
-3. کلیدهای رمزنگاری RSA را ساخته و کانفیگ سازگار با کامپیوتر را ایجاد می‌کند.
+این دستور به صورت کاملاً خودکار:
+1. پکیج‌های پایه و سیستمی مورد نیاز را از مخازن کالی نصب می‌کند.
+2. سورس رسمی پوناگوچی را دانلود و تمام پچ‌های سازگاری PC (شامل رفع خطاهای Pillow 10+، نام‌گذاری پکیج‌های پایتون و حذف وابستگی‌های رزبری‌پای) را اعمال می‌کند.
+3. کلیدهای هویت RSA و استاب pwngrid را ایجاد کرده و برنامه را آماده اجرا می‌سازد.
 
 ---
 
