@@ -11,8 +11,9 @@ A standalone wrapper, hardware auditor, and automated patchset for running **Jay
 * **کارت شبکه وای‌فای:** هر کارت شبکه‌ای که از حالت Monitor Mode در لینوکس پشتیبانی کند (شامل کارت‌های آنبرد اینتل `iwlwifi` و ریل‌تک `rtw89`/`rtw88` و دانگل‌های اکسترنال).
 * **پکیج‌های سیستمی مورد نیاز:**
   ```text
-  git, bettercap, libpcap-dev, python3-pip, python3-prctl, iw, aircrack-ng,
-  python3-dbus, python3-pil, fonts-dejavu, openssh-client, net-tools
+  git, bettercap, libpcap-dev, python3-pip, python3-prctl, python3-pycryptodome,
+  python3-flask-cors, iw, aircrack-ng, python3-dbus, python3-pil, fonts-dejavu,
+  openssh-client, net-tools
   ```
 
 ---
@@ -22,11 +23,11 @@ A standalone wrapper, hardware auditor, and automated patchset for running **Jay
 ترمینال کالی لینوکس را باز کرده و دستور زیر را به صورت کامل کپی و اجرا کنید:
 
 ```bash
-sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && sudo rm -rf pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
+sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl python3-pycryptodome python3-flask-cors iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && sudo rm -rf pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
 ```
 
 این دستور به صورت خودکار:
-1. پکیج‌های پایه و درایورهای مورد نیاز را نصب می‌کند.
+1. پکیج‌های پایه و درایورهای مورد نیاز را بدون تداخل pip نصب می‌کند.
 2. سورس اصلی پوناگوچی را دانلود و پچ‌های لینوکس PC را روی آن اعمال می‌کند (حذف پیش‌نیازهای اختصاصی سخت‌افزار رزبری‌پای مانند پین‌های GPIO، نمایشگر اینکی و سنسورهای باتری).
 3. کلیدهای رمزنگاری RSA را ساخته و کانفیگ سازگار با کامپیوتر را ایجاد می‌کند.
 
@@ -56,7 +57,7 @@ sudo ./start.sh
 
 * **عیب‌یابی خودکار سخت‌افزار (`doctor.py`):**  
   اسکریپت قبل از شروع، چیپست کارت شبکه را بررسی می‌کند.  
-  * اگر کارت شبکه از ارسال پکت (Packet Injection / Deauth) پشتیبانی نکند (مثل بیشتر چیپست‌های آنبرد لپ‌تاپ و مادربرد)، برنامه متوقف نمی‌شود؛ بلکه به صورت خودکار حالت **۱۰۰٪ پسیو (Passive Sniffer)** را فعال می‌کند (`deauth = false` و `associate = false`). در این حالت، ابزار هیچ پکت اضافه‌ای ارسال نمی‌کند و بدون کرش، صرفاً هندشیک‌ها و PMKIDهای حاصل از اتصال مجدد طبیعی دستگاه‌ها در محیط را به آرامی و بدون سر‌وصدا شکار می‌کند.
+  * اگر کارت شبکه از ارسال پکت (Packet Injection / Deauth) پشتیبانی نکند (مثل بیشتر چیپست‌های آنبرد لپ‌تاپ و مادربرد نظیر Realtek `rtw89` یا Intel `iwlwifi`)، برنامه متوقف نمی‌شود؛ بلکه به صورت خودکار حالت **۱۰۰٪ پسیو (Passive Sniffer)** را فعال می‌کند (`deauth = false` و `associate = false`). در این حالت، ابزار هیچ پکت اضافه‌ای ارسال نمی‌کند و بدون کرش، صرفاً هندشیک‌ها و PMKIDهای حاصل از اتصال مجدد طبیعی دستگاه‌ها در محیط را به آرامی و بدون سر‌وصدا شکار می‌کند.
   * اگر کارت شبکه شما اینجکشن داشته باشد، حالت فعال (Active) روشن می‌شود.
 * **شبیه‌ساز سرور گرید داخلی (Pwngrid Mock):**  
   یک وب‌سرویس پایتونی سبک روی پورت داخلی `127.0.0.1:8666` اجرا می‌شود تا بدون نیاز به کامپایل ابزارهای سنگین Go، چرخه تبادل دیتای پوناگوچی را تغذیه کند.
@@ -85,6 +86,27 @@ sudo ./start.sh
 
 ---
 
+### ۶. حل مشکل تحریم و خطای ۴۰۳ (تنظیم سریع‌ترین میرور برای ایران)
+
+مخزن پیش‌فرض کالی (`kali.download`) پشت کلودفلر قرار دارد و برای کاربران داخل ایران ارور `403 Forbidden` برمی‌گرداند. برای تعویض مستقیم به سرور دانشگاهی پرسرعت و پایدار در ایران، کافیست این دستور تک‌خطی را در ترمینال بزنید:
+
+```bash
+echo "deb http://ftp.halifax.rwth-aachen.de/kali kali-rolling main contrib non-free non-free-firmware" | sudo tee /etc/apt/sources.list && sudo apt update
+```
+
+---
+
+### ۷. بازیابی دستی کارت شبکه و اتصال مجدد اینترنت
+
+اسکریپت `start.sh` با فشردن کلیدهای `Ctrl + C` به صورت خودکار کارت شبکه را به وضعیت عادی بازمی‌گرداند. اما اگر به هر دلیلی (کرش، بستن ناگهانی ترمینال یا قطعی برق) اینترنت سیستم قطع ماند، با اجرای دستور یک‌خطی زیر در ترمینال کالی، مانیتور مود فوراً متوقف شده، کارت شبکه ریست شده و اینترنت متصل می‌شود:
+
+```bash
+sudo ip link set wlan0mon down 2>/dev/null; sudo iw dev wlan0mon del 2>/dev/null; sudo nmcli device set wlan0 managed yes 2>/dev/null; sudo rfkill unblock wifi; sudo systemctl restart NetworkManager
+```
+*(در صورت تفاوت نام اینترفیس، به جای `wlan0` نام کارت شبکه خود را وارد کنید).*
+
+---
+
 ## 🇬🇧 English Documentation
 
 ### Features
@@ -96,7 +118,7 @@ sudo ./start.sh
 
 ### Quick Install (Debian / Kali Linux Live)
 ```bash
-sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && sudo rm -rf pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
+sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip python3-prctl python3-pycryptodome python3-flask-cors iw aircrack-ng python3-dbus python3-pil fonts-dejavu openssh-client net-tools && sudo rm -rf pw-mini && git clone https://github.com/ShiTmoZ/pw-mini.git && cd pw-mini && sudo bash setup.sh
 ```
 
 ### Run
@@ -104,3 +126,9 @@ sudo apt update && sudo apt install -y git bettercap libpcap-dev python3-pip pyt
 sudo ./start.sh
 ```
 Access dashboard at `http://localhost:8080` (user/pass: `admin`/`admin`). Handshakes saved to `/root/handshakes/`.
+
+### Manual Network & Wi-Fi Restoration
+If an ungraceful shutdown occurs, restore full Wi-Fi and internet connectivity with:
+```bash
+sudo ip link set wlan0mon down 2>/dev/null; sudo iw dev wlan0mon del 2>/dev/null; sudo nmcli device set wlan0 managed yes 2>/dev/null; sudo rfkill unblock wifi; sudo systemctl restart NetworkManager
+```
