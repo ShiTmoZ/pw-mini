@@ -107,6 +107,18 @@ sudo ip link set wlan0mon down 2>/dev/null; sudo iw dev wlan0mon del 2>/dev/null
 
 ---
 
+### ۸. عیب‌یابی و نکات تکمیلی (Troubleshooting)
+
+* **خطای متد فونت در Pillow 10+ (`FreeTypeFont has no attribute getsize`):**  
+  در نسخه‌های جدید کالی لینوکس، کتابخانه Pillow متد `getsize` را حذف کرده است. اسکریپت `start.sh` به صورت خودکار این متد را برای رابط وب شبیه‌سازی (Monkey-patch) می‌کند.
+* **خطای ساخت کلیدهای هویت (`KeyPair has no attribute fingerprint`):**  
+  پوناگوچی برای امضای بسته به یک جفت‌کلید RSA نیاز دارد که در رزبری‌پای توسط باینری `pwngrid` ساخته می‌شد. روی PC این باینری وجود ندارد؛ اسکریپت `start.sh` به صورت خودکار یک ماک اجرایی با OpenSSL ایجاد می‌کند تا کلیدها تولید و اعتبارسنجی شوند. در صورت نیاز به تولید دستی:
+  ```bash
+  sudo openssl genrsa -out /etc/pwnagotchi/id_rsa 2048 && sudo openssl rsa -in /etc/pwnagotchi/id_rsa -pubout -out /etc/pwnagotchi/id_rsa.pub && sudo chmod 600 /etc/pwnagotchi/id_rsa
+  ```
+
+---
+
 ## 🇬🇧 English Documentation
 
 ### Features
