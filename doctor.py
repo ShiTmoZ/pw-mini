@@ -345,6 +345,10 @@ enabled = false
 deauth = {deauth}
 associate = {associate}
 advertise = true
+hop_recon_time = 5
+min_recon_time = 5
+recon_time = 10
+recon_inactive_multiplier = 1
 
 [bettercap]
 hostname = "127.0.0.1"
