@@ -59,6 +59,8 @@ install_system_packages() {
         libpcap-dev \
         python3-pip \
         python3-prctl \
+        python3-pycryptodome \
+        python3-flask-cors \
         git \
         iw \
         aircrack-ng \
@@ -90,25 +92,14 @@ install_python_requirements() {
     #   gpiozero inky rpi-lgpio rpi_hardware_pwm smbus smbus2 spidev pisugar
     # dbus-python is intentionally absent too -- python3-dbus (apt) covers it.
     cat > "$PWN_REQ_FILE" <<'REQS'
-PyYAML
 file-read-backwards
-flask
-flask-cors
 flask-wtf
-pycryptodome
-python-dateutil
-requests
-scapy
-setuptools
-tomlkit
-toml
 tweepy
 websockets
-Pillow
 REQS
 
-    python3 -m pip install --break-system-packages -r "$PWN_REQ_FILE" || \
-    python3 -m pip install --break-system-packages --ignore-installed -r "$PWN_REQ_FILE"
+    python3 -m pip install --break-system-packages --no-deps -r "$PWN_REQ_FILE" || \
+    python3 -m pip install --break-system-packages -r "$PWN_REQ_FILE"
 
     # Install pwnagotchi itself with --no-deps so the resolver never drags in
     # gpiozero/inky/smbus/spidev/pisugar (which would abort the whole install).
