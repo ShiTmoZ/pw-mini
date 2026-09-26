@@ -107,7 +107,8 @@ websockets
 Pillow
 REQS
 
-    python3 -m pip install --break-system-packages --upgrade -r "$PWN_REQ_FILE"
+    python3 -m pip install --break-system-packages -r "$PWN_REQ_FILE" || \
+    python3 -m pip install --break-system-packages --ignore-installed -r "$PWN_REQ_FILE"
 
     # Install pwnagotchi itself with --no-deps so the resolver never drags in
     # gpiozero/inky/smbus/spidev/pisugar (which would abort the whole install).
