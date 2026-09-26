@@ -275,6 +275,30 @@ except ImportError:
         pass
 " 2>/dev/null || true
 
+    # Pillow 10+ removed FreeTypeFont.getsize(). Auto-patch __init__.py if missing.
+    python3 -c "
+import os
+init_p = os.path.join('$PWN_REPO_DIR', 'pwnagotchi', '__init__.py')
+if os.path.isfile(init_p):
+    with open(init_p, 'r', encoding='utf-8') as f:
+        src = f.read()
+    if '_pwn_getsize' not in src:
+        patch = '''try:
+    import PIL.ImageFont
+    def _pwn_getsize(self, text, *args, **kwargs):
+        bbox = self.getbbox(text, *args, **kwargs)
+        return (bbox[2] - bbox[0], bbox[3] - bbox[1])
+    if not hasattr(PIL.ImageFont.FreeTypeFont, 'getsize'):
+        PIL.ImageFont.FreeTypeFont.getsize = _pwn_getsize
+    if not hasattr(PIL.ImageFont.ImageFont, 'getsize'):
+        PIL.ImageFont.ImageFont.getsize = _pwn_getsize
+except Exception:
+    pass
+'''
+        with open(init_p, 'w', encoding='utf-8') as f:
+            f.write(patch + '\n' + src)
+" 2>/dev/null || true
+
     local -a cmd
     if command -v pwnagotchi >/dev/null 2>&1 \
        && python3 -c "import pwnagotchi.ui.display" >/dev/null 2>&1; then

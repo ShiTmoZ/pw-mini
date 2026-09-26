@@ -209,6 +209,28 @@ elif old_block in text:
     print("  [b] patched __init__.py: temperature() fallback")
 else:
     sys.exit("  [b] FAILED: temperature() block not found (upstream changed?)")
+
+# --- patch (c): Pillow 10+ getsize compatibility -----------------------------
+# Pillow 10+ removed FreeTypeFont.getsize(). Monkey-patch it back using getbbox().
+text = read(init_path)
+if "_pwn_getsize" in text:
+    print("  [c] Pillow getsize already patched")
+else:
+    pillow_patch = (
+        "try:\n"
+        "    import PIL.ImageFont\n"
+        "    def _pwn_getsize(self, text, *args, **kwargs):\n"
+        "        bbox = self.getbbox(text, *args, **kwargs)\n"
+        "        return (bbox[2] - bbox[0], bbox[3] - bbox[1])\n"
+        "    if not hasattr(PIL.ImageFont.FreeTypeFont, 'getsize'):\n"
+        "        PIL.ImageFont.FreeTypeFont.getsize = _pwn_getsize\n"
+        "    if not hasattr(PIL.ImageFont.ImageFont, 'getsize'):\n"
+        "        PIL.ImageFont.ImageFont.getsize = _pwn_getsize\n"
+        "except Exception:\n"
+        "    pass\n"
+    )
+    write(init_path, pillow_patch + "\n" + text)
+    print("  [c] patched __init__.py: Pillow 10+ getsize compatibility")
 PYPATCH
 }
 
