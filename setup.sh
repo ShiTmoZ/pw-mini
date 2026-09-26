@@ -36,6 +36,13 @@ require_root() {
 install_system_packages() {
     log "installing system packages ..."
     export DEBIAN_FRONTEND=noninteractive
+
+    # Automatically replace blocked kali.download mirror (Cloudflare 403 geo-block)
+    if grep -qE "kali\.download|http\.kali\.org" /etc/apt/sources.list 2>/dev/null; then
+        log "switching kali.download to fast direct mirror (ftp.halifax.rwth-aachen.de) ..."
+        sed -i 's|http://kali.download/kali|http://ftp.halifax.rwth-aachen.de/kali|g; s|http://http.kali.org/kali|http://ftp.halifax.rwth-aachen.de/kali|g' /etc/apt/sources.list
+    fi
+
     apt-get update -y
     # Required by the spec:
     #   bettercap libpcap-dev python3-pip python3-prctl
